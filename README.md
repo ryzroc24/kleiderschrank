@@ -83,6 +83,7 @@ kleiderschrank/
 ├── manifest.json     PWA-Infos (Name, Icons, Farben)
 ├── sw.js             Service Worker (offline)
 ├── icons/            App-Icons (inkl. apple-touch-icon)
+├── models/           KI-Modell u2netp.onnx (optional, 4,5 MB)
 └── js/
     ├── app.js        Start, Tabs, Schrank, Detailansicht, Teil hinzufügen, Wäsche, Einstellungen
     ├── config.js     Kategorien, Standard-Einstellungen, Bildgrößen
@@ -143,12 +144,11 @@ schlechter werden. Bewertet wird nach Farb-Rating + Bonus für „nie / lange ni
   mit etwas Rand rundherum.
 
 **Optionales KI-Modell („Besser“)**
-- Lädt beim ersten Mal ca. **65 MB** (Modell *RMBG-1.4* von huggingface.co, Laufzeit *transformers.js* von cdn.jsdelivr.net).
-  Danach ist es im Browser-Cache und läuft offline. Diese Server sehen dabei nur deine IP-Adresse, **nicht deine Fotos**.
-  Die Berechnung passiert komplett auf dem Handy.
-- Braucht ein neueres iPhone (iOS 16.4 oder neuer, genug Arbeitsspeicher). Auf älteren Geräten kann es langsam sein
-  (10–60 Sekunden) oder den Tab abstürzen lassen. Deine gespeicherten Daten sind davon nicht betroffen.
-- Das Modell RMBG-1.4 (BRIA AI) ist nur für **nicht-kommerzielle Nutzung** freigegeben. Privat ist das in Ordnung.
+- Kleines Modell *U²-Netp* (4,5 MB, Apache-2.0, liegt im Ordner `models/`). Dazu kommt beim ersten Mal die Laufzeit
+  *onnxruntime-web* (ca. 11 MB) von cdn.jsdelivr.net. Danach ist alles im Browser-Cache und läuft offline.
+  Der Server sieht nur deine IP-Adresse, **nicht deine Fotos**. Die Berechnung passiert komplett auf dem Handy (wenige Sekunden).
+- Braucht nur wenig Arbeitsspeicher (das große Modell RMBG-1.4 hat auf dem iPhone die Seite zum Absturz gebracht und wurde ersetzt).
+- Das Ergebnis ist gröber als bei großen Modellen. Mit Radierer und Pinsel nachbessern.
 
 **Farben und Rating**
 - Licht und Kamera verfälschen Farben. Ein weißes Shirt im Schatten wird schnell „Hellgrau“. Farben lassen sich in der

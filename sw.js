@@ -1,6 +1,6 @@
 // Service Worker: macht die App offline-fähig.
 // Neue Dateien in SHELL eintragen und dann VERSION hochzählen (sonst fehlen sie offline).
-const VERSION = 'kleiderschrank-v2';
+const VERSION = 'kleiderschrank-v3';
 const CDN_CACHE = 'kleiderschrank-cdn'; // KI-Bibliothek von jsDelivr (bleibt über Updates erhalten)
 
 const SHELL = [
@@ -76,6 +76,6 @@ self.addEventListener('fetch', (e) => {
       }),
     );
   }
-  // Alles andere (z. B. Modelldateien von huggingface.co) geht direkt ans Netz;
-  // transformers.js speichert das Modell selbst im Browser-Cache.
+  // Alles andere geht direkt ans Netz. Das KI-Modell (models/u2netp.onnx) ist eine eigene Datei
+  // und wird von der Regel für eigene Dateien oben beim ersten Gebrauch gecacht.
 });
