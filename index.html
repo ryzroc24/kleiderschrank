@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Kleiderschrank</title>
+  <meta name="description" content="Digitaler Kleiderschrank – läuft komplett offline auf deinem Handy.">
+
+  <!-- PWA / iOS -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#24212b">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Kleiderschrank">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <h1 id="title">Kleiderschrank</h1>
+  </header>
+
+  <main id="view">
+    <div class="empty"><div class="spin"></div></div>
+  </main>
+
+  <button id="fab" class="fab" aria-label="Teil hinzufügen">＋</button>
+
+  <nav class="tabbar" aria-label="Navigation">
+    <button data-tab="schrank" class="active">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.5V7c0-.8.5-1.2 1.1-1.6.6-.4 1-.9 1-1.7a2.1 2.1 0 0 0-4.2 0"/><path d="M12 8.5 3 15.1c-.9.7-.4 2.1.7 2.1h16.6c1.1 0 1.6-1.4.7-2.1L12 8.5Z"/></svg>
+      <span>Schrank</span>
+    </button>
+    <button data-tab="outfit">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3 4 5.5 2.5 10l3 1.2V21h13v-9.8l3-1.2L20 5.5 16 3c-.6 1.6-2.2 2.6-4 2.6S8.6 4.6 8 3Z"/></svg>
+      <span>Outfit</span>
+    </button>
+    <button data-tab="waesche">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="2.5" width="17" height="19" rx="2.5"/><circle cx="12" cy="13" r="5"/><path d="M7 6h.01M10 6h.01"/></svg>
+      <span>Wäsche</span>
+      <b id="laundryBadge" class="tab-badge" hidden>0</b>
+    </button>
+    <button data-tab="mehr">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6" style="fill:currentColor"/><circle cx="12" cy="12" r="1.6" style="fill:currentColor"/><circle cx="19" cy="12" r="1.6" style="fill:currentColor"/></svg>
+      <span>Mehr</span>
+    </button>
+  </nav>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <noscript><p style="padding:2rem">Bitte JavaScript aktivieren.</p></noscript>
+</body>
+</html>
