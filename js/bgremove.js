@@ -380,10 +380,15 @@ function getKI(onStatus) {
       onStatus('Lade KI-Bibliothek …');
       const lib = await import(R.kiBibliothek);
       lib.env.allowLocalModels = false;
+      lib.env.backends.onnx.wasm.numThreads = 1; // 1 Thread = weniger Arbeitsspeicher (iPhone-Tab-Limit)
       const progress_callback = (p) => {
         if (p.status === 'progress' && p.total > 1e6) onStatus(`Lade Modell … ${Math.round(p.progress)} % (einmalig)`);
       };
-      const model = await lib.AutoModel.from_pretrained(R.kiModell, { config: { model_type: 'custom' }, dtype: 'q8', progress_callback });
+      const model = await lib.AutoModel.from_pretrained(R.kiModell, {
+        config: { model_type: 'custom' }, dtype: 'q8', progress_callback,
+        // Speicher sparen: kein Memory-Arena/-Pattern, einfache Optimierung (sonst bis ~870 statt ~700 MB)
+        session_options: { graphOptimizationLevel: 'basic', enableCpuMemArena: false, enableMemPattern: false },
+      });
       const processor = await lib.AutoProcessor.from_pretrained(R.kiModell, {
         config: {
           do_normalize: true, do_pad: false, do_rescale: true, do_resize: true,
@@ -397,6 +402,16 @@ function getKI(onStatus) {
     kiPromise.catch(() => { kiPromise = null; });
   }
   return kiPromise;
+}
+
+// Merker in localStorage: läuft die KI und die Seite wird beendet, bleibt er stehen und beim nächsten Versuch kommt eine Warnung.
+// kiMerker('Laden') setzt, kiMerker(null) löscht, kiMerker() liest (undefined = kein Absturz).
+function kiMerker(wert) {
+  try {
+    if (wert === undefined) return localStorage.getItem('ki-phase') || '';
+    if (wert === null) localStorage.removeItem('ki-phase'); else localStorage.setItem('ki-phase', wert);
+  } catch { /* Speicher gesperrt: egal */ }
+  return '';
 }
 
 // ── Editor-Ansicht ───────────────────────────────────────────────────
@@ -445,17 +460,27 @@ export function openEditor(blob) {
     const brush = h('input', { type: 'range', min: 6, max: 50, value: ed.brush, oninput: () => { ed.brush = +brush.value; } });
 
     const kiBtn = h('button', { class: 'btn small', onclick: async () => {
+      // Wurde die Seite beim letzten Versuch von iOS beendet (zu wenig Arbeitsspeicher), steht der Merker noch da
+      const last = kiMerker();
+      const warn = last
+        ? `\n\nACHTUNG: Der letzte Versuch ist in der Phase „${last}" abgestürzt (Handy hat die Seite beendet, vermutlich zu wenig Arbeitsspeicher). ` +
+          'Schließ vorher andere Apps und Safari-Tabs. Wenn es wieder abstürzt, nimm Zauberstab/Radierer/Pinsel.'
+        : '';
       const ok = await confirmDialog('Lokales KI-Modell',
         'Lädt einmalig ca. 65 MB (Modell RMBG-1.4 + Laufzeit) aus dem Internet und speichert es im Browser-Cache. ' +
-        'Dein Foto wird NICHT hochgeladen – die Berechnung läuft komplett auf dem Handy. Kann auf älteren iPhones langsam sein oder abbrechen.', 'Laden & ausführen');
+        'Dein Foto wird NICHT hochgeladen – die Berechnung läuft komplett auf dem Handy und braucht ca. 700 MB Arbeitsspeicher. ' +
+        'Kann auf älteren iPhones abbrechen.' + warn, 'Laden & ausführen');
       if (!ok) return;
       const sp = spinner('Starte …');
+      kiMerker('Laden');
       try {
-        await ed.runKI((t) => sp.set(t));
+        await ed.runKI((t) => { sp.set(t); if (t.startsWith('Berechne')) kiMerker('Berechnung'); });
+        kiMerker(null);
         tolRow.classList.add('disabled');
         toast('KI-Maske fertig – mit Radierer/Pinsel nachbessern');
       } catch (e) {
         console.error(e);
+        kiMerker(null);
         toast('KI fehlgeschlagen: ' + (e.message || e), 5000);
       } finally { sp.close(); }
     } }, '✨ Besser (lokales KI-Modell)');
