@@ -1,6 +1,6 @@
 // Service Worker: macht die App offline-fähig.
 // Neue Dateien in SHELL eintragen und dann VERSION hochzählen (sonst fehlen sie offline).
-const VERSION = 'kleiderschrank-v4';
+const VERSION = 'kleiderschrank-v5';
 const CDN_CACHE = 'kleiderschrank-cdn'; // KI-Bibliothek von jsDelivr (bleibt über Updates erhalten)
 
 const SHELL = [
@@ -46,6 +46,20 @@ self.addEventListener('fetch', (e) => {
 
   // Eigene Dateien: online immer die neueste Version holen (Updates sind sofort da),
   // offline oder bei sehr langsamer Verbindung (> 3 s) aus dem Cache
+  // KI-Modell: einmal laden, danach immer aus dem Cache (nicht bei jedem Teil neu herunterladen)
+  if (url.origin === self.location.origin && url.pathname.endsWith('.onnx')) {
+    e.respondWith(
+      caches.open(CDN_CACHE).then(async (cache) => {
+        const cached = await cache.match(req, { ignoreSearch: true });
+        if (cached) return cached;
+        const res = await fetch(req);
+        if (res.ok) cache.put(req, res.clone());
+        return res;
+      }),
+    );
+    return;
+  }
+
   if (url.origin === self.location.origin) {
     e.respondWith((async () => {
       const cache = await caches.open(VERSION);
