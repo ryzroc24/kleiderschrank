@@ -434,6 +434,14 @@ function kiMerker(wert) {
   return '';
 }
 
+// Merkt sich, dass das Modell schon einmal geladen wurde (dann kein Nachfragen mehr)
+function kiGeladen(setzen) {
+  try {
+    if (setzen) localStorage.setItem('ki-geladen', '1');
+    return localStorage.getItem('ki-geladen') === '1';
+  } catch { return false; }
+}
+
 // ── Editor-Ansicht ───────────────────────────────────────────────────
 // Öffnet den Freistell-Editor. Ergebnis: { image, thumb, orig, colors } oder null (abgebrochen).
 export function openEditor(blob) {
@@ -486,16 +494,20 @@ export function openEditor(blob) {
         ? `\n\nACHTUNG: Der letzte Versuch ist in der Phase „${last}" abgestürzt (Handy hat die Seite beendet, vermutlich zu wenig Arbeitsspeicher). ` +
           'Schließ vorher andere Apps und Safari-Tabs. Wenn es wieder abstürzt, nimm Zauberstab/Radierer/Pinsel.'
         : '';
-      const ok = await confirmDialog('Lokales KI-Modell',
-        'Lädt einmalig ca. 16 MB (kleines Modell U²-Netp + Laufzeit) und speichert es im Browser-Cache. ' +
-        'Dein Foto wird NICHT hochgeladen – die Berechnung läuft komplett auf dem Handy und dauert wenige Sekunden. ' +
-        'Das Ergebnis ist gröber als ein großes Modell: danach mit Radierer/Pinsel nachbessern.' + warn, 'Laden & ausführen');
-      if (!ok) return;
+      // Nur beim allerersten Mal (oder nach einem Absturz) nachfragen – danach liegt alles im Cache
+      if (!kiGeladen() || last) {
+        const ok = await confirmDialog('Lokales KI-Modell',
+          'Lädt einmalig ca. 16 MB (kleines Modell U²-Netp + Laufzeit) und speichert es im Browser-Cache. ' +
+          'Dein Foto wird NICHT hochgeladen – die Berechnung läuft komplett auf dem Handy und dauert wenige Sekunden. ' +
+          'Das Ergebnis ist gröber als ein großes Modell: danach mit Radierer/Pinsel nachbessern.' + warn, 'Laden & ausführen');
+        if (!ok) return;
+      }
       const sp = spinner('Starte …');
       kiMerker('Laden');
       try {
         await ed.runKI((t) => { sp.set(t); if (t.startsWith('Berechne')) kiMerker('Berechnung'); });
         kiMerker(null);
+        kiGeladen(true);
         tolRow.classList.add('disabled');
         toast('KI-Maske fertig – mit Radierer/Pinsel nachbessern');
       } catch (e) {
