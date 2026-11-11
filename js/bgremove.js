@@ -1,5 +1,5 @@
 // Hintergrund entfernen – ohne KI: Flood-Fill von den Bildrändern, Zauberstab, Radierer/Pinsel, Rückgängig.
-// Optional: lokales KI-Modell (RMBG-1.4) im Browser, wird erst auf Knopfdruck geladen.
+// Optional: kleines lokales KI-Modell (U²-Netp, 4,5 MB, Apache-2.0) im Browser, wird erst auf Knopfdruck geladen.
 import { rgbToLab, kmeans, extractColorsFromImageData } from './colors.js';
 import { BILD } from './config.js';
 import { h, openPage, toast, confirmDialog, spinner } from './ui.js';
@@ -13,8 +13,10 @@ export const FREISTELL_REGELN = {
   helligkeitGewicht: 0.75, // Helligkeit zählt nur 75 % → Schatten auf dem Hintergrund werden eher mit entfernt
   minInsel: 0.02,        // übrig gebliebene Flecken < 2 % des größten Teils werden entfernt
   randFarben: 3,         // so viele Hintergrundfarben werden am Bildrand gelernt
-  kiModell: 'briaai/RMBG-1.4',
-  kiBibliothek: 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1/dist/transformers.min.js',
+  kiModell: new URL('../models/u2netp.onnx', import.meta.url).href, // liegt im eigenen Repo
+  kiBasis: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/', // Laufzeit (ca. 11 MB, wird einmal geladen)
+  kiGroesse: 320,        // Eingabegröße des Modells (fest 320×320, braucht nur ca. 150–300 MB Arbeitsspeicher)
+  kiKontrast: 1.6,       // Maske etwas schärfer machen (1 = unverändert)
 };
 const R = FREISTELL_REGELN;
 
@@ -289,18 +291,44 @@ export class BgEditor {
   // ── Optional: lokales KI-Modell ──
   async runKI(onStatus) {
     const T = await getKI(onStatus);
-    onStatus('Berechne Maske … (10–60 Sekunden)');
-    const blob = await toBlob(this.srcCanvas, 'image/png');
-    const url = URL.createObjectURL(blob);
-    try {
-      const image = await T.lib.RawImage.fromURL(url);
-      const { pixel_values } = await T.processor(image);
-      const { output } = await T.model({ input: pixel_values });
-      const m = await T.lib.RawImage.fromTensor(output[0].mul(255).to('uint8')).resize(this.W, this.H);
-      const n = this.W * this.H, ch = m.channels || 1;
-      this.kiMask = new Uint8ClampedArray(n);
-      for (let i = 0; i < n; i++) this.kiMask[i] = m.data[i * ch];
-    } finally { URL.revokeObjectURL(url); }
+    onStatus('Berechne Maske …');
+    const S = R.kiGroesse, plane = S * S;
+    // Foto auf 320×320 verkleinern und wie beim Training normalisieren (Bild / Maximum, dann Mittelwert/Streuung)
+    const small = document.createElement('canvas');
+    small.width = S; small.height = S;
+    const sctx = small.getContext('2d', { willReadFrequently: true });
+    sctx.imageSmoothingQuality = 'high';
+    sctx.drawImage(this.srcCanvas, 0, 0, S, S);
+    const px = sctx.getImageData(0, 0, S, S).data;
+    let mx = 1;
+    for (let i = 0; i < plane; i++) mx = Math.max(mx, px[i * 4], px[i * 4 + 1], px[i * 4 + 2]);
+    const MEAN = [0.485, 0.456, 0.406], STD = [0.229, 0.224, 0.225];
+    const input = new Float32Array(3 * plane);
+    for (let i = 0; i < plane; i++) for (let c = 0; c < 3; c++) input[c * plane + i] = (px[i * 4 + c] / mx - MEAN[c]) / STD[c];
+    const out = await T.session.run({ [T.session.inputNames[0]]: new T.ort.Tensor('float32', input, [1, 3, S, S]) });
+    const pred = out[T.session.outputNames[0]].data;   // erste Ausgabe = fertige Maske (0..1)
+    let lo = Infinity, hi = -Infinity;
+    for (let i = 0; i < plane; i++) { if (pred[i] < lo) lo = pred[i]; if (pred[i] > hi) hi = pred[i]; }
+    const span = hi - lo || 1;
+    const mimg = sctx.createImageData(S, S);
+    for (let i = 0; i < plane; i++) {
+      const p = (pred[i] - lo) / span;
+      const v = Math.max(0, Math.min(1, (p - 0.5) * R.kiKontrast + 0.5)) * 255;
+      mimg.data[i * 4] = mimg.data[i * 4 + 1] = mimg.data[i * 4 + 2] = v;
+      mimg.data[i * 4 + 3] = 255;
+    }
+    sctx.putImageData(mimg, 0, 0);
+    // Maske auf Fotogröße hochskalieren (weich), roten Kanal als Maske nehmen
+    const big = document.createElement('canvas');
+    big.width = this.W; big.height = this.H;
+    const bctx = big.getContext('2d', { willReadFrequently: true });
+    bctx.imageSmoothingQuality = 'high';
+    bctx.drawImage(small, 0, 0, this.W, this.H);
+    const d = bctx.getImageData(0, 0, this.W, this.H).data;
+    const n = this.W * this.H;
+    this.kiMask = new Uint8ClampedArray(n);
+    for (let i = 0; i < n; i++) this.kiMask[i] = d[i * 4];
+    small.width = small.height = big.width = big.height = 0; // Speicher freigeben
     this.mode = 'ki';
     this.ops = [];
     this.recompute();
@@ -372,32 +400,23 @@ function blur3(a, W, H) {
   return o;
 }
 
-// KI-Bibliothek + Modell nur einmal laden (Browser-Cache hält es danach offline bereit)
+// KI-Laufzeit + Modell nur einmal laden (danach aus dem Cache, auch offline)
 let kiPromise = null;
 function getKI(onStatus) {
   if (!kiPromise) {
     kiPromise = (async () => {
-      onStatus('Lade KI-Bibliothek …');
-      const lib = await import(R.kiBibliothek);
-      lib.env.allowLocalModels = false;
-      lib.env.backends.onnx.wasm.numThreads = 1; // 1 Thread = weniger Arbeitsspeicher (iPhone-Tab-Limit)
-      const progress_callback = (p) => {
-        if (p.status === 'progress' && p.total > 1e6) onStatus(`Lade Modell … ${Math.round(p.progress)} % (einmalig)`);
-      };
-      const model = await lib.AutoModel.from_pretrained(R.kiModell, {
-        config: { model_type: 'custom' }, dtype: 'q8', progress_callback,
-        // Speicher sparen: kein Memory-Arena/-Pattern, einfache Optimierung (sonst bis ~870 statt ~700 MB)
-        session_options: { graphOptimizationLevel: 'basic', enableCpuMemArena: false, enableMemPattern: false },
-      });
-      const processor = await lib.AutoProcessor.from_pretrained(R.kiModell, {
-        config: {
-          do_normalize: true, do_pad: false, do_rescale: true, do_resize: true,
-          image_mean: [0.5, 0.5, 0.5], image_std: [1, 1, 1], resample: 2,
-          rescale_factor: 1 / 255, feature_extractor_type: 'ImageFeatureExtractor',
-          size: { width: 1024, height: 1024 },
-        },
-      });
-      return { lib, model, processor };
+      onStatus('Lade KI-Laufzeit … (einmalig, ca. 11 MB)');
+      const ort = await import(R.kiBasis + 'ort.wasm.min.mjs');
+      ort.env.wasm.wasmPaths = R.kiBasis;
+      ort.env.wasm.numThreads = 1;   // 1 Thread: spart Arbeitsspeicher, läuft überall
+      ort.env.wasm.proxy = false;
+      onStatus('Lade Modell … (4,5 MB)');
+      const res = await fetch(R.kiModell);
+      if (!res.ok) throw new Error('Modell nicht gefunden (' + res.status + ')');
+      const buf = await res.arrayBuffer();
+      onStatus('Starte Modell …');
+      const session = await ort.InferenceSession.create(buf, { executionProviders: ['wasm'] });
+      return { ort, session };
     })();
     kiPromise.catch(() => { kiPromise = null; });
   }
@@ -467,9 +486,9 @@ export function openEditor(blob) {
           'Schließ vorher andere Apps und Safari-Tabs. Wenn es wieder abstürzt, nimm Zauberstab/Radierer/Pinsel.'
         : '';
       const ok = await confirmDialog('Lokales KI-Modell',
-        'Lädt einmalig ca. 65 MB (Modell RMBG-1.4 + Laufzeit) aus dem Internet und speichert es im Browser-Cache. ' +
-        'Dein Foto wird NICHT hochgeladen – die Berechnung läuft komplett auf dem Handy und braucht ca. 700 MB Arbeitsspeicher. ' +
-        'Kann auf älteren iPhones abbrechen.' + warn, 'Laden & ausführen');
+        'Lädt einmalig ca. 16 MB (kleines Modell U²-Netp + Laufzeit) und speichert es im Browser-Cache. ' +
+        'Dein Foto wird NICHT hochgeladen – die Berechnung läuft komplett auf dem Handy und dauert wenige Sekunden. ' +
+        'Das Ergebnis ist gröber als ein großes Modell: danach mit Radierer/Pinsel nachbessern.' + warn, 'Laden & ausführen');
       if (!ok) return;
       const sp = spinner('Starte …');
       kiMerker('Laden');
