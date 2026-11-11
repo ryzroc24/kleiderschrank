@@ -4,11 +4,22 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Kleiderschrank</title>
+  <script>
+    // Design je Plattform: Apple-Geräte bekommen "Liquid Glass", Android & Rest den Material-Stil.
+    // Zum Testen: ?design=apple oder ?design=material an die Adresse hängen.
+    (function () {
+      var ua = navigator.userAgent || '';
+      var android = /Android/i.test(ua);
+      var apple = !android && /iPhone|iPad|iPod|Macintosh|Mac OS X/.test(ua);
+      var force = (location.search.match(/[?&]design=(apple|material)/) || [])[1];
+      document.documentElement.classList.add(force || (apple ? 'apple' : 'material'));
+    })();
+  </script>
   <meta name="description" content="Digitaler Kleiderschrank – läuft komplett offline auf deinem Handy.">
 
   <!-- PWA / iOS -->
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#24212b">
+  <meta name="theme-color" content="#0f0f11">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Kleiderschrank">
@@ -29,7 +40,7 @@
     <div class="empty"><div class="spin"></div></div>
   </main>
 
-  <button id="fab" class="fab" aria-label="Teil hinzufügen">＋</button>
+  <button id="fab" class="fab" aria-label="Teil hinzufügen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
 
   <nav class="tabbar" aria-label="Navigation">
     <button data-tab="schrank" class="active">

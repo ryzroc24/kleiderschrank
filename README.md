@@ -96,8 +96,16 @@ kleiderschrank/
     ├── suggest.js    Ersatzteil-Vorschläge, „Überrasch mich“           ← Vorschlags-Regeln
     ├── outfit.js     Outfit-Builder und gespeicherte Outfits
     ├── backup.js     Export/Import aller Daten inkl. Bilder
+    ├── icons.js      eigene Linien-Icons (statt Emojis)
     └── ui.js         kleine Helfer (Dialoge, Toast, Sheets)
 ```
+
+## Design
+
+- iPhone, iPad, Mac: **Liquid Glass** (schwebende Glas-Tableiste mit wandernder „Linse“, Glas-Sheets und -Dialoge).
+- Android und alle anderen: **Material-Stil** (feste Navigationsleiste mit Pillen-Indikator, eckiger ＋-Button), kein Glas.
+- Erkannt wird das Gerät im kleinen Skript oben in `index.html`. Zum Testen am PC `?design=apple` oder `?design=material` an die Adresse hängen.
+- Farben und Rundungen stehen oben in `style.css` unter `:root` (z. B. `--accent` für das Volt-Grün).
 
 ## 4. Wo die Regeln stehen
 
