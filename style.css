@@ -335,8 +335,8 @@ input[type="range"] { width: 100%; height: 32px; margin: 0; accent-color: var(--
 
 .flatlay {
   position: relative;
-  display: grid; grid-template-rows: 40% 36% 18%; gap: 3%;
-  height: min(58vh, 420px); margin-bottom: 12px; padding: 14px 18px;
+  display: grid; grid-template-rows: 34% 46% 14%; gap: 2%; /* Oberteil / Hose / Schuhe: Hose bekommt mehr Höhe, damit sie zum Shirt passt */
+  height: min(66vh, 500px); margin-bottom: 12px; padding: 14px 18px;
   border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow);
 }
 .flatlay > .score { position: absolute; top: 12px; right: 12px; }
