@@ -3,7 +3,8 @@ import { state, itemById, itemImg, saveOutfit, deleteOutfit, wearItems, markOutf
 import { rateOutfit } from './rating.js';
 import { suggestSwaps, surprise } from './suggest.js';
 import { availability, relDate, lastWorn, wornToday } from './wardrobe.js';
-import { KATEGORIEN, katIcon } from './config.js';
+import { KATEGORIEN } from './config.js';
+import { icon } from './icons.js';
 import { newId } from './db.js';
 import { h, fill, toast, dialog, confirmDialog, segmented } from './ui.js';
 
@@ -53,13 +54,13 @@ function buildView() {
     refs.summary,
     refs.preview,
     h('div', { class: 'row gap' },
-      h('button', { class: 'btn', onclick: onImprove }, '💡 Verbessern'),
-      h('button', { class: 'btn', onclick: onSurprise }, '🎲 Überrasch mich')),
+      h('button', { class: 'btn', onclick: onImprove }, icon('bulb'), 'Verbessern'),
+      h('button', { class: 'btn', onclick: onSurprise }, icon('shuffle'), 'Überrasch mich')),
     refs.suggestion,
     refs.reasons,
     refs.strips,
     h('div', { class: 'row gap sticky-actions' },
-      h('button', { class: 'btn primary', onclick: onWearToday }, '✓ Heute angezogen'),
+      h('button', { class: 'btn primary', onclick: onWearToday }, icon('check'), 'Heute angezogen'),
       h('button', { class: 'btn', onclick: onSave }, 'Speichern'),
       h('button', { class: 'btn ghost', onclick: () => { builder = { pick: {}, outfitId: null, name: '' }; swaps = null; persist(); updateLive(); } }, 'Leeren')));
   return view;
@@ -78,7 +79,7 @@ function slotStrip(k) {
         !av.ok && h('span', { class: `tag ${av.kind}` }, av.kind === 'waesche' ? 'Wäsche' : 'Woche'),
         h('small', {}, it.name));
     }));
-  return h('div', { class: 'slot' }, h('h3', {}, `${k.icon} ${k.label}`), items.length ? strip : h('p', { class: 'muted small' }, `Noch keine ${k.plural}.`));
+  return h('div', { class: 'slot' }, h('h3', {}, icon(k.id), k.label), items.length ? strip : h('p', { class: 'muted small' }, `Noch keine ${k.plural}.`));
 }
 
 function choose(slot, id, av) {
@@ -103,7 +104,7 @@ function updateLive() {
   // Flat-Lay-Vorschau: Teile übereinander angeordnet
   const cell = (slot) => {
     const it = itemById(builder.pick[slot]);
-    return h('div', { class: `fl fl-${slot} ${it ? '' : 'empty'}` }, it ? itemImg(it.id) : h('span', {}, katIcon(slot)));
+    return h('div', { class: `fl fl-${slot} ${it ? '' : 'empty'}` }, it ? itemImg(it.id) : icon(slot, 'fl-ph'));
   };
   fill(refs.preview,
     h('div', { class: 'fl-row top' }, cell('jacke'), cell('oberteil')),
@@ -116,7 +117,7 @@ function updateLive() {
     r.reasons.length
       ? h('ul', { class: 'reasons' }, r.reasons.map((x) => h('li', { class: x.sign === '+' ? 'pos' : x.sign === '−' ? 'neg' : '' }, h('b', {}, x.sign), ' ', x.text)))
       : h('p', { class: 'muted small' }, 'Wähle Teile aus, um eine Bewertung zu sehen.'),
-    items.some((i) => !availability(i, state.settings).ok) && h('p', { class: 'warn small' }, '⚠️ Mindestens ein Teil ist in der Wäsche oder wurde diese Woche schon getragen.'));
+    items.some((i) => !availability(i, state.settings).ok) && h('p', { class: 'warn small' }, icon('alert'), 'Mindestens ein Teil ist in der Wäsche oder wurde diese Woche schon getragen.'));
 
   renderSuggestion();
   // Auswahl in den Leisten markieren
@@ -140,14 +141,14 @@ function renderSuggestion() {
     h('h3', {}, `Vorschlag ${swapIdx + 1}/${swaps.length}`),
     h('div', { class: 'swap' },
       h('div', { class: 'swap-item' }, itemImg(s.weak.id), h('small', {}, s.weak.name)),
-      h('span', { class: 'arrow' }, '→'),
+      h('span', { class: 'arrow' }, icon('arrow')),
       h('div', { class: 'swap-item' }, itemImg(s.cand.id), h('small', {}, s.cand.name)),
       h('div', { class: `score small ${scoreClass(s.after.score)}` }, s.after.score)),
     h('ul', { class: 'reasons' }, s.why.map((w) => h('li', {}, w))),
     h('div', { class: 'row gap' },
       h('button', { class: 'btn primary', onclick: () => { builder.pick[s.cand.category] = s.cand.id; swaps = null; persist(); updateLive(); } }, 'Übernehmen'),
       swaps.length > 1 && h('button', { class: 'btn', onclick: () => { swapIdx = (swapIdx + 1) % swaps.length; renderSuggestion(); } }, 'Anderer'),
-      h('button', { class: 'btn ghost', onclick: () => { swaps = null; renderSuggestion(); } }, '✕'))));
+      h('button', { class: 'btn ghost', 'aria-label': 'Schließen', onclick: () => { swaps = null; renderSuggestion(); } }, icon('x')))));
 }
 
 function onSurprise() {
@@ -158,7 +159,7 @@ function onSurprise() {
   persist();
   updateLive();
   const missing = res.missing.length ? ` · keine verfügbaren: ${res.missing.join(', ')}` : '';
-  toast(`🎲 ${res.rating.score ?? '–'}/10${res.why.length ? ' · ' + res.why.join(', ') : ''}${missing}`, 4000);
+  toast(`${res.rating.score ?? '–'}/10${res.why.length ? ' · ' + res.why.join(', ') : ''}${missing}`, 4000);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -208,19 +209,19 @@ function savedView(view) {
       h('div', { class: 'outfit-info' },
         h('div', { class: 'row between' }, h('b', {}, o.name), r.score != null && h('span', { class: `pill ${scoreClass(r.score)}` }, `${r.score}/10`)),
         h('p', { class: 'muted small' }, `Zuletzt angezogen: ${relDate(last)} · ${o.wornDates?.length || 0}×`),
-        blocked.length > 0 && h('p', { class: 'warn small' }, `⚠️ ${blocked.map((i) => `${i.name} (${availability(i, state.settings).reason})`).join(', ')}`),
+        blocked.length > 0 && h('p', { class: 'warn small' }, icon('alert'), `${blocked.map((i) => `${i.name} (${availability(i, state.settings).reason})`).join(', ')}`),
         h('div', { class: 'row gap' },
           h('button', { class: 'btn small', onclick: () => { loadIntoBuilder(o); renderOutfit(view); } }, 'Öffnen'),
           h('button', { class: 'btn small primary', onclick: async () => {
             const n = await wearItems(items);
             await markOutfitWorn(o);
             toast(n ? `Heute angezogen: ${o.name}` : 'Schon für heute eingetragen.');
-          } }, '✓ Heute'),
+          } }, icon('check'), 'Heute'),
           h('button', { class: 'btn small ghost', 'aria-label': 'Löschen', onclick: async () => {
             if (await confirmDialog('Outfit löschen?', `„${o.name}“ wird gelöscht. Die Teile bleiben im Schrank.`, 'Löschen', true)) {
               await deleteOutfit(o.id);
               if (builder.outfitId === o.id) { builder.outfitId = null; persist(); }
             }
-          } }, '🗑'))));
+          } }, icon('trash')))));
   }));
 }

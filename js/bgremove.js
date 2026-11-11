@@ -3,6 +3,7 @@
 import { rgbToLab, kmeans, extractColorsFromImageData } from './colors.js';
 import { BILD } from './config.js';
 import { h, openPage, toast, confirmDialog, spinner } from './ui.js';
+import { icon } from './icons.js';
 
 // ── REGELN: Freistellen ──────────────────────────────────────────────
 export const FREISTELL_REGELN = {
@@ -455,11 +456,11 @@ export function openEditor(blob) {
       right: btnNext,
     });
 
-    const toolBtn = (tool, icon, label) => h('button', { class: `tool ${ed.tool === tool ? 'active' : ''}`, dataset: { tool }, onclick: () => setTool(tool) },
-      h('span', { class: 'tool-icon' }, icon), h('span', {}, label));
+    const toolBtn = (tool, ic, label) => h('button', { class: `tool ${ed.tool === tool ? 'active' : ''}`, dataset: { tool }, onclick: () => setTool(tool) },
+      h('span', { class: 'tool-icon' }, icon(ic)), h('span', {}, label));
     const tools = h('div', { class: 'tools' },
-      toolBtn('wand', '🪄', 'Zauberstab'), toolBtn('erase', '🧽', 'Radierer'), toolBtn('restore', '🖌️', 'Pinsel'),
-      h('button', { class: 'tool', onclick: () => { if (!ed.undo()) toast('Nichts zum Rückgängigmachen'); } }, h('span', { class: 'tool-icon' }, '↶'), h('span', {}, 'Zurück')));
+      toolBtn('wand', 'wand', 'Zauberstab'), toolBtn('erase', 'eraser', 'Radierer'), toolBtn('restore', 'brush', 'Pinsel'),
+      h('button', { class: 'tool', onclick: () => { if (!ed.undo()) toast('Nichts zum Rückgängigmachen'); } }, h('span', { class: 'tool-icon' }, icon('undo')), h('span', {}, 'Zurück')));
     const setTool = (t) => { ed.tool = t; tools.querySelectorAll('[data-tool]').forEach((b) => b.classList.toggle('active', b.dataset.tool === t)); hint.textContent = HINTS[t]; };
     const HINTS = {
       wand: 'Tippe auf Hintergrund-Reste (z. B. zwischen Arm und Körper), um sie zu entfernen.',
@@ -502,7 +503,7 @@ export function openEditor(blob) {
         kiMerker(null);
         toast('KI fehlgeschlagen: ' + (e.message || e), 5000);
       } finally { sp.close(); }
-    } }, '✨ Besser (lokales KI-Modell)');
+    } }, icon('sparkle'), 'Besser freistellen (lokale KI)');
 
     const ghost = h('input', { type: 'checkbox', onchange: () => { ed.ghost = ghost.checked; ed.render(); } });
 

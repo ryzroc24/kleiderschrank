@@ -8,6 +8,9 @@ import { renderOutfit } from './outfit.js';
 import { createBackup, shareFile, downloadFile, importBackup, deleteAll } from './backup.js';
 import * as W from './wardrobe.js';
 import { $, h, fill, toast, dialog, confirmDialog, openPage, sheet, spinner, segmented } from './ui.js';
+import { icon } from './icons.js';
+
+const TABS = ['schrank', 'outfit', 'waesche', 'mehr'];
 
 const TITLES = { schrank: 'Kleiderschrank', outfit: 'Outfit', waesche: 'Wäsche', mehr: 'Mehr' };
 let tab = 'schrank';
@@ -35,6 +38,7 @@ function switchTab(t) {
 function render() {
   $('#title').textContent = TITLES[tab];
   document.querySelectorAll('.tabbar button').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
+  $('.tabbar').style.setProperty('--i', TABS.indexOf(tab)); // Position der Glas-Linse (nur Apple-Design)
   $('#fab').hidden = tab !== 'schrank';
   const n = state.items.filter((i) => i.status === 'waesche').length;
   const badge = $('#laundryBadge');
@@ -60,15 +64,15 @@ function renderSchrank(view) {
   const chips = h('div', { class: 'chips' },
     [{ id: 'alle', plural: 'Alle', icon: '' }, ...KATEGORIEN].map((k) =>
       h('button', { class: `chip ${filter === k.id ? 'active' : ''}`, onclick: () => { filter = k.id; render(); } },
-        `${k.icon} ${k.plural} `, h('small', {}, count(k.id)))));
+        k.id !== 'alle' && icon(k.id), k.plural, h('small', {}, count(k.id)))));
   const items = state.items.filter((i) => filter === 'alle' || i.category === filter);
 
   if (!state.items.length) {
     return view.replaceChildren(h('div', { class: 'empty' },
-      h('div', { class: 'empty-icon' }, '👕'),
+      h('div', { class: 'empty-icon' }, icon('hanger')),
       h('p', {}, 'Dein Schrank ist noch leer.'),
-      h('p', { class: 'muted' }, 'Tippe auf ＋, fotografiere ein Kleidungsstück und stelle es frei.'),
-      h('button', { class: 'btn primary', onclick: addItem }, '＋ Erstes Teil hinzufügen')));
+      h('p', { class: 'muted' }, 'Tippe auf +, fotografiere ein Kleidungsstück und stelle es frei.'),
+      h('button', { class: 'btn primary', onclick: addItem }, icon('plus'), 'Erstes Teil hinzufügen')));
   }
   view.replaceChildren(chips, items.length
     ? h('div', { class: 'grid' }, items.map((it) =>
@@ -95,11 +99,11 @@ function colorEditor(colors, onChange, onRedetect) {
           nameIn,
           segmented([{ value: 'neutral', label: 'neutral' }, { value: 'farbe', label: 'Farbe' }], c.type, (v) => { c.type = v; onChange(colors); }, 'seg-small'),
           h('small', { class: 'muted share' }, `${Math.round(c.share * 100)} %`),
-          h('button', { class: 'icon-btn', 'aria-label': 'Farbe entfernen', onclick: () => { colors.splice(i, 1); onChange(colors); draw(); } }, '✕'));
+          h('button', { class: 'icon-btn', 'aria-label': 'Farbe entfernen', onclick: () => { colors.splice(i, 1); onChange(colors); draw(); } }, icon('x')));
       }),
       h('div', { class: 'row gap' },
-        colors.length < 3 && h('button', { class: 'btn small', onclick: () => { colors.push(colorFromHex('#808080', 0.2)); onChange(colors); draw(); } }, '＋ Farbe'),
-        onRedetect && h('button', { class: 'btn small ghost', onclick: async () => { const nc = await onRedetect(); if (nc) { colors.splice(0, colors.length, ...nc); onChange(colors); draw(); } } }, '↻ Neu erkennen')));
+        colors.length < 3 && h('button', { class: 'btn small', onclick: () => { colors.push(colorFromHex('#808080', 0.2)); onChange(colors); draw(); } }, icon('plus'), 'Farbe'),
+        onRedetect && h('button', { class: 'btn small ghost', onclick: async () => { const nc = await onRedetect(); if (nc) { colors.splice(0, colors.length, ...nc); onChange(colors); draw(); } } }, icon('refresh'), 'Neu erkennen')));
   };
   draw();
   return wrap;
@@ -109,7 +113,7 @@ function categoryPicker(value, onChange) {
   const wrap = h('div', { class: 'cat-picker' });
   const draw = (v) => wrap.replaceChildren(...KATEGORIEN.map((k) =>
     h('button', { class: `cat-btn ${v === k.id ? 'active' : ''}`, onclick: () => { draw(k.id); onChange(k.id); } },
-      h('span', { class: 'cat-icon' }, k.icon), h('span', {}, k.label))));
+      h('span', { class: 'cat-icon' }, icon(k.id)), h('span', {}, k.label))));
   draw(value);
   return wrap;
 }
@@ -127,7 +131,7 @@ function fileOption(label, capture) {
 }
 
 async function addItem() {
-  const file = await sheet('Neues Teil', [fileOption('📷 Foto aufnehmen', true), fileOption('🖼️ Aus Fotos wählen', false)]);
+  const file = await sheet('Neues Teil', [fileOption([icon('camera'), 'Foto aufnehmen'], true), fileOption([icon('image'), 'Aus Fotos wählen'], false)]);
   if (!file) return;
   const res = await openEditor(file);
   if (res) openNewItemForm(res);
@@ -191,7 +195,7 @@ function openItem(id) {
         if (today) { W.unmarkWorn(item, state.settings); toast('Eintrag für heute entfernt.'); }
         else { W.markWorn(item, state.settings); toast(item.status === 'waesche' ? 'Getragen – ab in die Wäsche!' : 'Als heute getragen eingetragen.'); }
         await save();
-      } }, today ? '✓ Heute getragen (rückgängig)' : 'Heute getragen'),
+      } }, today ? [icon('check'), 'Heute getragen (rückgängig)'] : 'Heute getragen'),
       h('div', { class: 'card stats' },
         h('div', {}, h('b', {}, `${item.wearsSinceWash || 0}${limit ? '/' + limit : ''}`), h('small', {}, 'seit Wäsche')),
         h('div', {}, h('b', {}, item.wornDates?.length || 0), h('small', {}, 'insgesamt')),
@@ -208,7 +212,7 @@ function openItem(id) {
       item.wornDates?.length > 0 && h('div', { class: 'field' }, h('span', {}, 'Zuletzt getragen'),
         h('p', { class: 'muted small' }, item.wornDates.slice(-8).reverse().map((d) => W.parseIso(d).toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'numeric' })).join(' · '))),
       h('div', { class: 'row gap' },
-        h('button', { class: 'btn', onclick: () => reEdit(item) }, '✂️ Hintergrund neu bearbeiten'),
+        h('button', { class: 'btn', onclick: () => reEdit(item) }, icon('scissors'), 'Hintergrund neu bearbeiten'),
         h('button', { class: 'btn danger', onclick: async () => {
           if (await confirmDialog('Teil löschen?', `„${item.name}“ wird endgültig gelöscht.`, 'Löschen', true)) { await deleteItem(item.id); page.close(); toast('Gelöscht.'); }
         } }, 'Löschen')));
@@ -232,7 +236,7 @@ async function reEdit(item) {
 function renderWaesche(view) {
   const inWash = state.items.filter((i) => i.status === 'waesche');
   const worn = state.items.filter((i) => i.status === 'getragen');
-  const wash = async (items) => { items.forEach(W.markWashed); await saveItems(items); toast(items.length > 1 ? `${items.length} Teile gewaschen ✨` : 'Gewaschen ✨'); };
+  const wash = async (items) => { items.forEach(W.markWashed); await saveItems(items); toast(items.length > 1 ? `${items.length} Teile gewaschen` : 'Gewaschen'); };
   const row = (it, buttons) => h('div', { class: 'list-row' },
     h('div', { class: 'list-img', onclick: () => openItem(it.id) }, itemImg(it.id)),
     h('div', { class: 'list-text', onclick: () => openItem(it.id) },
@@ -245,7 +249,7 @@ function renderWaesche(view) {
       inWash.length > 1 && h('button', { class: 'btn small primary', onclick: () => wash(inWash) }, 'Alles gewaschen')),
     inWash.length
       ? h('div', { class: 'card list' }, inWash.map((it) => row(it, h('button', { class: 'btn small primary', onclick: () => wash([it]) }, 'Gewaschen'))))
-      : h('p', { class: 'muted empty-small' }, 'Wäschekorb ist leer 🎉'),
+      : h('p', { class: 'muted empty-small' }, 'Wäschekorb ist leer.'),
     h('div', { class: 'section-head' }, h('h3', {}, `Getragen, noch tragbar (${worn.length})`)),
     worn.length
       ? h('div', { class: 'card list' }, worn.map((it) => row(it, h('div', { class: 'row gap-s' },
@@ -278,11 +282,11 @@ function renderMehr(view) {
     h('div', { class: 'card settings' },
       h('h3', {}, 'Tragen bis zur Wäsche'),
       h('p', { class: 'muted small' }, 'Nach so vielen Tragetagen kommt ein Teil automatisch in die Wäsche.'),
-      KATEGORIEN.map((k) => h('div', { class: 'set-row' }, h('span', {}, `${k.icon} ${k.label}`), stepper(k.id)))),
+      KATEGORIEN.map((k) => h('div', { class: 'set-row' }, h('span', { class: 'lbl' }, icon(k.id), k.label), stepper(k.id)))),
     h('div', { class: 'card settings' },
       h('h3', {}, '„Diese Woche getragen“ ausgrauen'),
       h('p', { class: 'muted small' }, 'Gilt Mo–So. Ausgegraute Teile tauchen nicht in Vorschlägen auf.'),
-      KATEGORIEN.map((k) => h('div', { class: 'set-row' }, h('span', {}, `${k.icon} ${k.label}`), toggle(k.id)))),
+      KATEGORIEN.map((k) => h('div', { class: 'set-row' }, h('span', { class: 'lbl' }, icon(k.id), k.label), toggle(k.id)))),
     h('div', { class: 'card settings' },
       h('h3', {}, 'Backup'),
       h('p', { class: 'muted small' }, 'Alle Teile, Bilder, Outfits und Einstellungen in einer Datei. Am iPhone: „In Dateien sichern“ wählen.'),
