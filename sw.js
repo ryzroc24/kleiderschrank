@@ -1,6 +1,6 @@
 // Service Worker: macht die App offline-fähig.
 // Neue Dateien in SHELL eintragen und dann VERSION hochzählen (sonst fehlen sie offline).
-const VERSION = 'kleiderschrank-v1';
+const VERSION = 'kleiderschrank-v2';
 const CDN_CACHE = 'kleiderschrank-cdn'; // KI-Bibliothek von jsDelivr (bleibt über Updates erhalten)
 
 const SHELL = [
